@@ -4,9 +4,8 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Globalization;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.EntityFrameworkCore.TestUtilities;
@@ -767,7 +766,7 @@ namespace Microsoft.EntityFrameworkCore.Query
         #region Bug13108
 
         [Fact]
-        public virtual void Foreign_key_infers_type_for_private_property()
+        public virtual void HasForeignKey_infers_type_for_shadow_property_when_not_specified()
         {
             using (CreateScratch<MyContext13108>(e => { }, "13108"))
             {
@@ -859,6 +858,130 @@ namespace Microsoft.EntityFrameworkCore.Query
             public int Id { get; set; }
             public Entityß Navigationß { get; set; }
             public Entityß Navigationss { get; set; }
+        }
+
+        #endregion
+
+        #region Bug13300
+
+        [Fact]
+        public virtual void Explicitly_set_shadow_FK_name_is_preserved_with_HasPrincipalKey()
+        {
+            using (CreateScratch<MyContext13300>(e => { }, "13300"))
+            {
+                using (var context = new MyContext13300())
+                {
+                    var model = context.Model;
+
+                    var fk = model.FindEntityType(typeof(Profile13300)).GetForeignKeys().Single();
+                    Assert.Equal("_profiles", fk.PrincipalToDependent.Name);
+                    Assert.Equal("User", fk.DependentToPrincipal.Name);
+                    Assert.Equal("Email", fk.Properties[0].Name);
+                    Assert.Equal(typeof(string), fk.Properties[0].ClrType);
+                    Assert.Equal("_email", fk.PrincipalKey.Properties[0].Name);
+                }
+            }
+        }
+
+        private class MyContext13300 : DbContext
+        {
+            protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+            {
+                optionsBuilder.UseInMemoryDatabase("13300");
+            }
+
+            protected override void OnModelCreating(ModelBuilder modelBuilder)
+            {
+                modelBuilder.Entity<User13300>(m =>
+                {
+                    m.Property("_email");
+
+                    m.HasMany<Profile13300>("_profiles")
+                        .WithOne("User")
+                        .HasForeignKey("Email")
+                        .HasPrincipalKey("_email");
+                });
+
+                modelBuilder.Entity<Profile13300>(m =>
+                {
+                    m.Property<string>("Email");
+                });
+            }
+        }
+
+        public class User13300
+        {
+            public Guid Id { get; set; }
+            private string _email = string.Empty;
+            private readonly List<Profile13300> _profiles = new List<Profile13300>();
+        }
+
+        public class Profile13300
+        {
+            public Guid Id { get; set; }
+            public User13300 User { get; set; }
+        }
+
+        #endregion
+
+        #region Bug13694
+
+        [Fact]
+        public virtual void Attribute_set_shadow_FK_name_is_preserved_with_HasPrincipalKey()
+        {
+            using (CreateScratch<MyContext13694>(e => { }, "13694"))
+            {
+                using (var context = new MyContext13694())
+                {
+                    var model = context.Model;
+
+                    var fk = model.FindEntityType(typeof(Profile13694)).GetForeignKeys().Single();
+                    Assert.Equal("_profiles", fk.PrincipalToDependent.Name);
+                    Assert.Equal("User", fk.DependentToPrincipal.Name);
+                    Assert.Equal("Email", fk.Properties[0].Name);
+                    Assert.Equal(typeof(string), fk.Properties[0].ClrType);
+                    Assert.Equal("_email", fk.PrincipalKey.Properties[0].Name);
+                }
+            }
+        }
+
+        private class MyContext13694 : DbContext
+        {
+            protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+            {
+                optionsBuilder.UseInMemoryDatabase("13694");
+            }
+
+            protected override void OnModelCreating(ModelBuilder modelBuilder)
+            {
+                modelBuilder.Entity<User13694>(m =>
+                {
+                    m.Property("_email");
+
+                    m.HasMany<Profile13694>("_profiles")
+                        .WithOne("User")
+                        .HasPrincipalKey("_email");
+                });
+
+                modelBuilder.Entity<Profile13694>(m =>
+                {
+                    m.Property<string>("Email");
+                });
+            }
+        }
+
+        public class User13694
+        {
+            public Guid Id { get; set; }
+            private string _email = string.Empty;
+            private readonly List<Profile13694> _profiles = new List<Profile13694>();
+        }
+
+        public class Profile13694
+        {
+            public Guid Id { get; set; }
+            [ForeignKey("Email")]
+            public User13694 User { get; set; }
         }
 
         #endregion
