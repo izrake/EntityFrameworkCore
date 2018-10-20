@@ -571,17 +571,21 @@ namespace Microsoft.EntityFrameworkCore
 
             if (configurationSnapshot.AutoDetectChangesEnabled != null)
             {
-                ChangeTracker.AutoDetectChangesEnabled = configurationSnapshot.AutoDetectChangesEnabled.Value;
-            }
+                Debug.Assert(configurationSnapshot.QueryTrackingBehavior.HasValue);
 
-            if (configurationSnapshot.QueryTrackingBehavior != null)
-            {
+                ChangeTracker.AutoDetectChangesEnabled = configurationSnapshot.AutoDetectChangesEnabled.Value;
                 ChangeTracker.QueryTrackingBehavior = configurationSnapshot.QueryTrackingBehavior.Value;
             }
-
-            if (configurationSnapshot.AutoTransactionsEnabled != null)
+            else
             {
-                Database.AutoTransactionsEnabled = configurationSnapshot.AutoTransactionsEnabled.Value;
+                ((IResettableService)_changeTracker)?.ResetState();
+            }
+
+            if (_database != null)
+            {
+                _database.AutoTransactionsEnabled
+                    = configurationSnapshot.AutoTransactionsEnabled == null
+                      || configurationSnapshot.AutoTransactionsEnabled.Value;
             }
         }
 
